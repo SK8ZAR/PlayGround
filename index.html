@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#071417">
+  <title>Hook &amp; Pole — The Isle of the Hidden Hoard</title>
+  <meta name="description" content="A punishing, hand-drawn climbing game. Swing a solid wooden pole, throw a pirate's hook, and haul yourself up the Isle of the Hidden Hoard.">
+  <link rel="preload" href="assets/fonts/pirata-one.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/im-fell-english.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <main id="app">
+    <canvas id="game" aria-label="Hook and Pole climbing game"></canvas>
+    <div class="fx-vignette" aria-hidden="true"></div>
+    <div class="fx-grain" aria-hidden="true"></div>
+    <div class="fx-scan" aria-hidden="true"></div>
+
+    <!-- ══════════════ HUD ══════════════ -->
+    <section id="hud" class="hidden" aria-live="polite">
+      <header class="hud-head">
+        <div class="hud-mark">
+          <span class="mark-rope"></span>
+          <span class="mark-title">HOOK <i>&amp;</i> POLE</span>
+        </div>
+        <div class="hud-readouts">
+          <div class="readout">
+            <span class="readout-label">ALTITUDE</span>
+            <span class="readout-value"><b id="altitude">0</b><small>m</small></span>
+          </div>
+          <div class="readout readout-small">
+            <span class="readout-label">BEST</span>
+            <span class="readout-value"><b id="best-alt">0</b><small>m</small></span>
+          </div>
+          <div class="readout readout-small">
+            <span class="readout-label">TIME</span>
+            <span class="readout-value"><b id="timer">0:00</b></span>
+          </div>
+        </div>
+      </header>
+
+      <aside class="climb-track" aria-label="Climb progress">
+        <div class="track-rail">
+          <div id="track-fill" class="track-fill"></div>
+          <div id="track-marks" class="track-marks"></div>
+          <div id="track-you" class="track-you"><span></span></div>
+        </div>
+        <div class="track-labels" id="track-labels"></div>
+      </aside>
+
+      <div id="zone-banner" class="zone-banner">
+        <span class="zone-kicker">NOW ENTERING</span>
+        <span class="zone-name" id="zone-name">The Shallows</span>
+      </div>
+
+      <div id="narration" class="narration">
+        <p id="narration-text"></p>
+        <span class="narration-rule"></span>
+      </div>
+
+      <div id="hint" class="hint">
+        <span class="hint-key" id="hint-key">MOUSE</span>
+        <span id="hint-text">Swing the pole. Plant the tip. Climb.</span>
+      </div>
+
+      <div id="hook-ui" class="hook-ui">
+        <div class="hook-row">
+          <span class="hook-label">GRAPPLE</span>
+          <span id="hook-state" class="hook-state">READY</span>
+        </div>
+        <div class="hook-meter"><i id="hook-meter-fill"></i></div>
+        <div class="hook-row hook-sub"><span id="hook-dist">—</span><span>RIGHT MOUSE TO THROW</span></div>
+      </div>
+
+      <div id="toast" class="toast"><span id="toast-text"></span></div>
+
+      <footer class="hud-foot">
+        <span><kbd>R</kbd> checkpoint</span>
+        <span><kbd>ESC</kbd> pause</span>
+        <span><kbd>M</kbd> sound</span>
+        <span class="hud-fall"><b id="falls">0</b> FALLS</span>
+      </footer>
+    </section>
+
+    <!-- ══════════════ TITLE ══════════════ -->
+    <section id="title-screen" class="screen title-screen">
+      <div class="title-inner">
+        <div class="title-copy">
+          <div class="eyebrow"><span></span>A TALE OF GRAVITY &amp; GREED<span></span></div>
+          <h1 class="logo">
+            <span class="logo-hook" aria-hidden="true">
+              <svg viewBox="0 0 120 210" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M60 11v134c0 30 19 47 45 47 13 0 22-8 22-19" stroke="currentColor" stroke-width="15" stroke-linecap="round"/>
+                <path d="M17 134c0 39 22 61 57 61 21 0 37-8 47-19" stroke="currentColor" stroke-width="15" stroke-linecap="round"/>
+                <path d="M60 11v12" stroke="#f8df9a" stroke-width="8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="logo-lines">
+              <span class="logo-small">THE ISLE OF THE HIDDEN HOARD</span>
+              <span class="logo-big">HOOK <em>&amp;</em> POLE</span>
+            </span>
+          </h1>
+          <p class="tagline">A game of gravity, greed, and one very sturdy stick.</p>
+          <p class="blurb">The treasure sits at the top of the island. You have a solid wooden pole for one arm, an iron hook for the other, and absolutely no plan.</p>
+
+          <div class="title-actions">
+            <button id="begin-btn" class="btn btn-gold">
+              <span class="btn-ornament">✦</span> BEGIN THE CLIMB
+            </button>
+            <button id="how-btn" class="btn btn-ghost">HOW TO CLIMB</button>
+          </div>
+
+          <div class="title-stats">
+            <div><span>YOUR BEST</span><b id="title-best">—</b></div>
+            <div><span>SUMMITS</span><b id="title-summits">0</b></div>
+            <div><span>THE FALLS</span><b>MANY</b></div>
+          </div>
+        </div>
+
+        <aside class="title-card">
+          <div class="card-corner tl"></div><div class="card-corner tr"></div><div class="card-corner bl"></div><div class="card-corner br"></div>
+          <h2>THE CLIMBER'S CREED</h2>
+          <ul class="creed">
+            <li><span class="creed-num">I</span><p><b>Move the mouse</b> to swing your wooden pole. The pole is heavy. You are not.</p></li>
+            <li><span class="creed-num">II</span><p><b>Plant the tip</b> on a ledge and drag the mouse to lever yourself up. Hold <b>left mouse</b> for a firmer grip.</p></li>
+            <li><span class="creed-num">III</span><p><b>Right mouse</b> throws your hook. Hold to haul in. Release to let go. It may save your life.</p></li>
+            <li><span class="creed-num">IV</span><p><b>A / D</b> waddles the barrel. <b>R</b> returns you to the last checkpoint flag.</p></li>
+          </ul>
+          <div class="card-rule"></div>
+          <p class="card-quote">“The mountain is not in your way. The mountain <i>is</i> the way — and it is also, unfortunately, quite tall.”</p>
+          <span class="card-sig">— an old pirate, shortly before falling</span>
+        </aside>
+      </div>
+      <footer class="title-foot">
+        <span>BEST PLAYED WITH MOUSE &amp; HEADPHONES</span>
+        <span class="foot-dot">◆</span>
+        <span>BUILT FOR THE OCCASIONAL BAD DECISION</span>
+      </footer>
+    </section>
+
+    <!-- ══════════════ HOW TO ══════════════ -->
+    <section id="how-screen" class="screen modal-screen hidden">
+      <div class="how-card">
+        <button id="how-close" class="close-x" aria-label="Close">×</button>
+        <div class="eyebrow"><span></span>THE SHORT VERSION<span></span></div>
+        <h2 class="panel-title">HOW TO CLIMB</h2>
+        <div class="how-grid">
+          <div class="how-item">
+            <div class="how-icon"><svg viewBox="0 0 64 64"><path d="M20 10v34a12 12 0 0 0 24 0" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M8 44c0 10 7 14 17 14" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/></svg></div>
+            <h3>SWING THE POLE</h3>
+            <p>The tip of the pole chases your cursor. It has weight, momentum, and opinions. Sweep the mouse to build a swing.</p>
+          </div>
+          <div class="how-item">
+            <div class="how-icon"><svg viewBox="0 0 64 64"><rect x="8" y="30" width="48" height="12" rx="3" fill="currentColor"/><path d="M20 26 32 12l12 14" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/></svg></div>
+            <h3>LEVER, DON'T LEAP</h3>
+            <p>Hook the tip over a ledge, then pull the cursor down. The pole pries you upward. Hold left mouse to grip harder.</p>
+          </div>
+          <div class="how-item">
+            <div class="how-icon"><svg viewBox="0 0 64 64"><path d="M16 8v20c0 16 8 26 20 26 9 0 14-5 14-12" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M10 28c0 20 12 32 30 32" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round"/></svg></div>
+            <h3>THROW THE HOOK</h3>
+            <p>Right mouse fires the hook toward the cursor. It bites any rock or timber within reach, then reels you in while held.</p>
+          </div>
+          <div class="how-item">
+            <div class="how-icon"><svg viewBox="0 0 64 64"><path d="M32 6v42M20 26l12 12 12-12" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 54h40" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></div>
+            <h3>FALL. RETURN. CLIMB.</h3>
+            <p>There is no death, only inconvenience. R returns you to the last checkpoint flag. The sea returns you there too, with less dignity.</p>
+          </div>
+        </div>
+        <div class="how-note">TIP — The pole reaches furthest when it is nearly perpendicular to the cliff. Get close. Commit. Regret later.</div>
+        <button id="how-begin" class="btn btn-gold">START CLIMBING</button>
+      </div>
+    </section>
+
+    <!-- ══════════════ PAUSE ══════════════ -->
+    <section id="pause-screen" class="screen modal-screen hidden">
+      <div class="pause-card">
+        <div class="eyebrow"><span></span>HOLDING VERY STILL<span></span></div>
+        <h2 class="panel-title">PAUSED</h2>
+        <p class="pause-quote" id="pause-quote">“Even the sea takes a breath.”</p>
+        <div class="pause-stats">
+          <div><span>ALTITUDE</span><b id="pause-alt">0 m</b></div>
+          <div><span>CHECKPOINT</span><b id="pause-cp">The Shallows</b></div>
+          <div><span>FALLS</span><b id="pause-falls">0</b></div>
+          <div><span>TIME</span><b id="pause-time">0:00</b></div>
+        </div>
+        <div class="pause-actions">
+          <button id="resume-btn" class="btn btn-gold">BACK TO THE CLIMB</button>
+          <button id="restart-btn" class="btn btn-ghost">RETURN TO CHECKPOINT</button>
+          <button id="quit-btn" class="btn btn-ghost">ABANDON VOYAGE</button>
+        </div>
+        <div class="pause-controls"><span><kbd>M</kbd> sound <b id="sound-lbl">on</b></span><span><kbd>H</kbd> help</span></div>
+      </div>
+    </section>
+
+    <!-- ══════════════ ENDING ══════════════ -->
+    <section id="end-screen" class="screen modal-screen hidden">
+      <div class="end-card">
+        <div class="end-rays" aria-hidden="true"></div>
+        <div class="eyebrow"><span></span>THE HOARD IS YOURS<span></span></div>
+        <h2 class="end-title">TOP OF THE WORLD</h2>
+        <p class="end-sub">Or at least the top of this particular island.</p>
+        <div class="end-chest" aria-hidden="true">
+          <svg viewBox="0 0 200 130"><path d="M14 58c0-28 20-46 47-46h78c27 0 47 18 47 46v10H14z" fill="#7a4a1f" stroke="#2b1608" stroke-width="4"/><path d="M14 68h172v48H14z" fill="#8f5a27" stroke="#2b1608" stroke-width="4"/><path d="M14 68h172v10H14z" fill="#d8a642"/><rect x="86" y="58" width="28" height="34" rx="4" fill="#e0b451" stroke="#2b1608" stroke-width="4"/><circle cx="100" cy="75" r="4" fill="#2b1608"/><path d="M35 68V56c0-20 13-32 33-32h64c20 0 33 12 33 32v12" fill="none" stroke="#c99b45" stroke-width="5"/></svg>
+        </div>
+        <div class="end-stats">
+          <div><span>TIME TO SUMMIT</span><b id="end-time">0:00</b></div>
+          <div><span>FALLS</span><b id="end-falls">0</b></div>
+          <div><span>CHECKPOINT RETURNS</span><b id="end-resets">0</b></div>
+          <div><span>HOOKS LANDED</span><b id="end-hooks">0</b></div>
+        </div>
+        <p class="end-line" id="end-line">The treasure was the friends you made along the way. It is also, it turns out, a great deal of gold.</p>
+        <div class="end-actions">
+          <button id="again-btn" class="btn btn-gold">SAIL AGAIN</button>
+          <button id="end-title-btn" class="btn btn-ghost">BACK TO TITLE</button>
+        </div>
+      </div>
+    </section>
+
+    <div id="loading" class="loading">
+      <div class="loading-mark">✦</div>
+      <div class="loading-text">CHARTING THE ISLAND</div>
+      <div class="loading-bar"><i></i></div>
+    </div>
+
+    <div id="rotate-note" class="rotate-note">Best played in landscape, with a mouse and a disregard for self-preservation.</div>
+  </main>
+
+  <script src="vendor/matter.min.js"></script>
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>
