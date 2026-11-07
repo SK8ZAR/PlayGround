@@ -47,6 +47,8 @@ class Game {
     this.mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, wx: 0, wy: 0 };
     this.keys = { left: false, right: false };
     this.grip = false;
+    this.rightMouseDown = false;
+    this.reeling = false;
     this.running = false;
 
     this.stats = { falls: 0, resets: 0, hooks: 0 };
@@ -211,11 +213,19 @@ class Game {
       if (this.mode !== 'playing') return;
       this.audio.init();
       if (e.button === 0) this.grip = true;
-      if (e.button === 2) this.fireHook();
+      if (e.button === 2) {
+        this.rightMouseDown = true;
+        if (this.hook.state === 'attached') this.reeling = true;
+        else this.fireHook();
+      }
     });
     window.addEventListener('pointerup', (e) => {
       if (e.button === 0) this.grip = false;
-      if (e.button === 2 && this.mode === 'playing') this.releaseHook();
+      if (e.button === 2) {
+        this.rightMouseDown = false;
+        this.reeling = false;
+        if (this.mode === 'playing' && this.hook.state === 'attached') this.releaseHook();
+      }
     });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('wheel', (e) => {
@@ -631,6 +641,7 @@ class Game {
           h.anchor = { x: h.to.x, y: h.to.y };
           h.ropeLen = Math.max(40, Math.hypot(p.x - h.anchor.x, p.y - h.anchor.y));
           h.attachedFor = 0;
+          this.reeling = this.rightMouseDown;
           this.stats.hooks++;
           this.audio.hookLatch();
           this.spawnImpact(h.anchor, 'stone', 1.2);
@@ -640,9 +651,6 @@ class Game {
     } else if (h.state === 'attached') {
       h.attachedFor += dt;
       h.pos.x = h.anchor.x; h.pos.y = h.anchor.y;
-      if (this.grip || this.reeling) {
-        // reel is driven by right-mouse held; this.reeling is set on fire
-      }
       if (this.reeling) {
         h.ropeLen = Math.max(38, h.ropeLen - 170 * dt);
         if (Math.random() < .4) this.audio.reel();
@@ -778,10 +786,11 @@ class Game {
 
   releaseHook(silent = false) {
     const h = this.hook;
+    this.rightMouseDown = false;
     this.reeling = false;
-    if (h.state === 'attached' || h.state === 'flying') {
+    // Let a thrown hook finish its flight; releasing only lets go after it latches.
+    if (h.state === 'attached') {
       if (!silent) this.toast('');
-      const hand = this.hand();
       h.state = 'retracting';
       h.t = 0;
       h.dur = .18;
